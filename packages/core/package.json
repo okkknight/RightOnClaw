@@ -1,0 +1,17 @@
+{
+  "name": "@rightonclaw/core",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test test/*.test.cjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@rightonclaw/types": "workspace:*",
+    "zod": "^3.25.76"
+  }
+}

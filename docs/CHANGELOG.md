@@ -1,0 +1,107 @@
+# Changelog
+
+## 2026-03-13
+
+- Added a minimal public text-action executor router:
+  - public `summarize` / `explain` now make an explicit routing decision between `openclaw` and `openclaw_responses`
+  - routing considers the existing fast-path gate, OpenClaw fast-path credential availability, and `RIGHTONCLAW_FAST_PATH_MAX_INPUT_LENGTH`
+  - internal experimental `summarize_fast` / `explain_fast` remain unchanged and still route directly to `model`
+- Added structured routing observation for public text actions:
+  - emits `public_text_action_routing`
+  - records `action_id`, `requested_fast_path`, `selected_runner`, `routing_reason`, `credential_provider`, and `input_text_length`
+  - reasons currently include `fast_path_disabled`, `no_fast_path_credential`, `input_too_large`, and `openclaw_responses_selected`
+- Added `OpenClawResponsesExecutor` for public fast-path text actions:
+  - public `summarize` / `explain` now call the OpenClaw Gateway `/v1/responses` API directly on the fast path
+  - the public fast path now reuses shared OpenClaw credentials and no longer requires `RIGHTONCLAW_MODEL_API_KEY`
+  - internal experimental actions `summarize_fast` / `explain_fast` remain unchanged on `ModelExecutor`
+- Added an opt-in fast-path gate for the public RightOnClaw `explain` action:
+  - new env `RIGHTONCLAW_EXPLAIN_FAST_PATH=1` lets public `explain` route from `OpenClawExecutor` to `OpenClawResponsesExecutor`
+  - default remains unchanged; when the flag is absent, public `explain` still uses the original OpenClaw path
+  - verified gate-off OpenClaw dispatch, gate-on fast-path dispatch, envelope compatibility, and structured no-credential failure without changing the public route or helper behavior
+- Extended lightweight runtime observation to public `explain`:
+  - observation is emitted as a structured internal log `explain_runtime_observation`
+  - records `runner_used`, `credential_provider`, `input_text_length`, `success`, and `total_duration_ms`
+  - complements the existing `summarize` observation without changing the public response envelope
+
+## 2026-03-12
+
+- Added a fourth built-in action, `explain`, across the incremental runtime architecture:
+  - built-in `Explain` action definition and OpenClaw prompt
+  - popup-first handler/result shaping with text-only validation
+  - bridge endpoint `POST /v1/actions/explain`
+  - macOS Quick Action `Explain with Claw`
+  - tests for built-in resolution, route behavior, envelope shape, and macOS popup delivery
+- Followed up the new `explain` action with UX/verification hardening:
+  - added `explain` to the end-to-end `smoke:openclaw` harness
+  - gave the macOS popup layer a distinct `explanation` kind so `Explain with Claw` can evolve independently from `Summarize with Claw`
+  - updated the mock OpenClaw client so local bootstrap and smoke runs return explanation-shaped content instead of a generic fallback
+  - synced current API/action docs so capabilities-style action lists include `explain`
+- Applied a focused UX polish pass without changing bridge schemas:
+  - reordered visible actions to `Summarize`, `Explain`, `Rewrite`, `Send to Claw`
+  - summarize/explain/rewrite now default to the detected system language when recognized, with Simplified Chinese as the fallback default
+  - `Rewrite with Claw` now uses a user-confirmed replacement flow through the macOS Service output path instead of Accessibility-driven app automation
+  - replaced the large alert-style popup with a more compact AppKit utility-window layout and smaller controls
+- Added `packages/credential-layer` with a `CredentialProvider` interface, ordered `CredentialProviderRegistry`, and two initial providers:
+  - `SharedCredentialProvider` for shared OpenClaw-style credentials
+  - `ApiKeyCredentialProvider` for model-style API key fallback
+- Wired the credential provider registry from the bridge composition root without changing bridge schemas, macOS helper behavior, or the current OpenClaw executor path.
+- Added credential-layer tests covering provider resolution order, shared-to-api-key fallback, model-only API key behavior, and structured failure when no provider resolves.
+- Added a real OpenClaw adapter behind `packages/openclaw-client`, using the official OpenClaw OpenResponses HTTP endpoint with `x-openclaw-session-key`.
+- Added client factory/config wiring so the bridge can switch between `mock` and `real` modes via environment variables.
+- Kept bridge envelopes unchanged while allowing `send_to_claw` to succeed even when no WebUI URL can be produced.
+- Added contract tests for the real adapter request shape, chat URL generation, and structured failure mapping.
+- Updated README and client-spec docs for local real-adapter setup and current backend limitations.
+- Added `scripts/smoke-test-openclaw.ts` for end-to-end bridge smoke coverage against a running OpenClaw-backed bridge.
+- Added root script `corepack pnpm smoke:openclaw`.
+- Documented smoke-test usage and environment overrides in `README.md`.
+- Hardened the macOS helper failure UX:
+  - action failures now stay inside RightOnClaw popup handling instead of surfacing Automator's generic shell-script failure dialog
+  - loading HUD launch failures no longer write stderr noise into Automator
+  - restyled the loading HUD to use a plain rounded overlay without the vibrancy border effect
+- Refactored `packages/action-runtime` incrementally toward the executor architecture without changing bridge schemas or macOS helper behavior:
+  - introduced internal `ActionRuntime`, `ExecutorRegistry`, built-in manifest loader, and `OpenClawExecutor`
+  - kept `dispatchAction()` exported while moving OpenClaw execution logic out of handlers
+  - preserved current `send_to_claw`, `summarize`, and `rewrite` result shaping and delivery recommendations
+  - added characterization tests for `dispatchAction()` and added a root `pnpm test` script
+- Activated the credential layer with the first true non-OpenClaw executor:
+  - added `ModelExecutor` plus a separate minimal `HttpModelClient`
+  - wired the bridge composition root with a second executor (`openclaw` + `model`) while keeping public bridge routes, schemas, and helper behavior unchanged
+  - added an internal experimental `summarize_fast` path that reuses the standard summarize result envelope while running on the `model` executor
+  - made `ModelExecutor` actively resolve credentials through the ordered registry (`shared` first, `api_key` second)
+  - added tests for registry consumption, shared-provider preference, api-key fallback, structured no-credential failure, and envelope compatibility
+- Added a second internal experimental fast path, `explain_fast`, to validate multi-executor explain support:
+  - kept it internal-only with no new public bridge route and no macOS workflow exposure
+  - reused the existing explain prompt + handler/result-shaping path while switching the manifest runner to `model`
+  - verified built-in definition resolution, runtime dispatch to `ModelExecutor`, envelope compatibility with `explain`, and structured credential-failure handling
+- Added `scripts/smoke-experimental-actions.ts` plus `pnpm smoke:experimental`:
+  - validates the experimental built-in action path through `ActionRuntime.executeExperimental(...)`
+  - defaults to `explain_fast` and optionally supports `summarize_fast`
+  - confirms dispatch through `ModelExecutor`, prints the resolved credential provider, and emits structured failure details when credentials do not resolve
+- Added a small fast-path gate for public `summarize`:
+  - default remains `openclaw`
+  - `RIGHTONCLAW_SUMMARIZE_FAST_PATH=1` switches public `summarize` to `ModelExecutor`
+  - public bridge route, response envelope, and macOS helper behavior remain unchanged
+  - kept internal `summarize_fast` in place as the experimental validation path
+- Added lightweight runtime observation for public `summarize`:
+  - logs `runner_used`, `credential_provider`, `input_text_length`, `success`, and `total_duration_ms`
+  - covers both the default OpenClaw path and the gated `ModelExecutor` fast path
+  - does not change the public bridge response envelope
+
+## 2026-03-11
+
+- Bootstrapped the initial pnpm TypeScript monorepo for RightOnClaw.
+- Added shared request/response types, zod-backed validation, and structured error handling.
+- Implemented a mockable OpenClaw client with in-memory sessions and deterministic V1 text generation.
+- Implemented V1 action runtime handlers for `send_to_claw`, `summarize`, and `rewrite`.
+- Added a localhost-only Fastify bridge with `/v1/health`, `/v1/capabilities`, and action endpoints.
+- Verified successful build plus local smoke tests for success and validation-error flows.
+- Added `apps/macos-integration` with:
+  - generated Quick Action workflows for text and Finder contexts
+  - a thin Node helper that captures macOS context and calls the bridge
+  - a Swift popup helper for summarize, rewrite fallback, and error display
+  - direct rewrite apply via paste, with popup + clipboard fallback
+- Hardened the macOS helper:
+  - direct apply now uses an app allowlist/denylist policy
+  - apply-selection reports conservative `uncertain/failed/skipped` outcomes instead of assuming success
+  - clipboard restore is delay-configurable and only restores if the clipboard still holds RightOnClaw's pasted text
+  - added tests for rewrite apply failure, popup-disabled fallback, unsupported-app skip, and send-to-claw browser-open failure

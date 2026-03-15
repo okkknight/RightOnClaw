@@ -1,0 +1,23 @@
+{
+  "name": "@rightonclaw/bridge-server",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/server.js",
+  "types": "dist/server.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "node --test test/*.test.cjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@rightonclaw/action-runtime": "workspace:*",
+    "@rightonclaw/credential-layer": "workspace:*",
+    "@rightonclaw/core": "workspace:*",
+    "@rightonclaw/openclaw-client": "workspace:*",
+    "@rightonclaw/types": "workspace:*",
+    "fastify": "^5.2.1"
+  }
+}

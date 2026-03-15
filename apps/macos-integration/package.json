@@ -1,0 +1,19 @@
+{
+  "name": "@rightonclaw/macos-integration",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/workflow-cli.js",
+  "types": "dist/workflow-cli.d.ts",
+  "files": ["dist", "swift"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && mkdir -p dist/bin && swiftc -parse-as-library -O -framework AppKit swift/RightOnClawDesignSystem.swift swift/RightOnClawWindowChrome.swift swift/RightOnClawPopup.swift -o dist/bin/rightonclaw-popup && swiftc -parse-as-library -O -framework AppKit swift/RightOnClawDesignSystem.swift swift/RightOnClawWindowChrome.swift swift/RightOnClawHud.swift -o dist/bin/rightonclaw-hud && swiftc -parse-as-library -O -framework AppKit swift/RightOnClawDesignSystem.swift swift/RightOnClawWindowChrome.swift swift/RightOnClawConversationUI.swift swift/RightOnClawAskPanel.swift -o dist/bin/rightonclaw-ask-panel && swiftc -parse-as-library -O -framework AppKit swift/RightOnClawDesignSystem.swift swift/RightOnClawWindowChrome.swift swift/RightOnClawSetupPanel.swift -o dist/bin/rightonclaw-setup-panel && swiftc -parse-as-library -O -framework AppKit swift/RightOnClawDesignSystem.swift swift/RightOnClawWindowChrome.swift swift/RightOnClawStreamPopup.swift -o dist/bin/rightonclaw-stream-popup && swiftc -parse-as-library -O -framework AppKit -framework Carbon swift/RightOnClawDesignSystem.swift swift/RightOnClawWindowChrome.swift swift/RightOnClawMenuBar.swift -o dist/bin/rightonclaw-menubar",
+    "build-finder-sync": "node dist/build-finder-sync.js",
+    "test": "node --test test/*.test.cjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "install-workflows": "node dist/install.js",
+    "install-finder-sync": "node dist/install-finder-sync.js"
+  },
+  "dependencies": {
+    "@rightonclaw/types": "workspace:*"
+  }
+}

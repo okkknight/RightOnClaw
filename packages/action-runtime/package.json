@@ -1,0 +1,19 @@
+{
+  "name": "@rightonclaw/action-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test test/*.test.cjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@rightonclaw/credential-layer": "workspace:*",
+    "@rightonclaw/core": "workspace:*",
+    "@rightonclaw/openclaw-client": "workspace:*",
+    "@rightonclaw/types": "workspace:*"
+  }
+}
