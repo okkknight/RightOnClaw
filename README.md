@@ -4,6 +4,8 @@ RightOnClaw is a local macOS AI action layer built around one simple idea:
 
 **select something, then ask Claw.**
 
+AI should live inside the OS, not inside another window.
+
 It sits between macOS entry points and a local AI bridge, so text selections, Finder items, and screenshots can all flow into the same `ask_claw` / `summarize` / `explain` / `rewrite` / `send_to_claw` pipeline.
 
 The project is:
@@ -226,25 +228,10 @@ Current public bridge endpoints:
 - `POST /v1/actions/explain/stream`
 - `POST /v1/actions/rewrite`
 
-## What This Project Is Not Trying To Do
 
-At the current stage, RightOnClaw is not trying to:
 
-- replace every macOS entry mechanism with one unified extension API
-- turn the macOS helper into the runtime brain
-- turn Finder Sync into a replacement for Services
-- rewrite executor/runtime layering just to support UI or entry changes
+RightOnClaw works best with **OpenClaw**, but it does not require it.
 
-The project already has a stable spine. Most current work is additive around it.
+If OpenClaw is installed, RightOnClaw connects automatically.If not, you can configure an **API key backend during the first‑run setup** and start using it immediately.
 
-## Publishing Notes
-
-If you are preparing this repo for GitHub, the main things to review are:
-
-- license choice
-- whether you want screenshots or a short demo GIF in the repo
-- whether you want CI on GitHub Actions
-- `.gitignore` coverage for local build/system artifacts
-- whether you want to keep `package.json` marked `"private": true`
-
-This repository is fine to publish as source control while still keeping `"private": true`; that flag only blocks accidental package publish to npm.
+This is the first public version and feedback is very welcome.
