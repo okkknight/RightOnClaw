@@ -28,11 +28,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck
-        run: pnpm typecheck
-
       - name: Build workspace
         run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
 
       - name: Build Finder Sync PoC
         run: pnpm --filter @rightonclaw/macos-integration build-finder-sync
