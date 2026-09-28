@@ -9,9 +9,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/linpeiwen/rightonclaw"
+    "url": "https://github.com/okkknight/RightOnClaw"
   },
-  "homepage": "https://github.com/linpeiwen/rightonclaw#readme",
+  "homepage": "https://github.com/okkknight/RightOnClaw#readme",
   "author": "Lin Peiwen",
   "keywords": ["macos", "ai", "assistant", "automation", "openclaw"],
   "scripts": {
