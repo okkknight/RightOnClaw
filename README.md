@@ -1,237 +1,71 @@
 # RightOnClaw
 
-RightOnClaw is a local macOS AI action layer built around one simple idea:
+RightOnClaw is a local AI action layer for macOS: select text, choose files in Finder, or capture a screenshot, then ask Claw without first packaging that context into a separate chat.
 
-**select something, then ask Claw.**
+The selection goes through a local bridge and comes back in a native AskPanel. `ask_claw` is the main flow, with a conversational window for follow-up questions; summarize, explain, rewrite, and send to Claw are direct actions for the same captured context. Services give it broad text and Finder coverage, while the menu bar, hotkeys, screenshot capture, and Finder Sync extension make the entry point feel native where they fit.
 
-AI should live inside the OS, not inside another window.
+The macOS layer stays focused on capture and delivery. OpenClaw is the preferred backend, with a configured OpenAI-compatible backend also supported; `send_to_claw` needs OpenClaw.
 
-It sits between macOS entry points and a local AI bridge, so text selections, Finder items, and screenshots can all flow into the same `ask_claw` / `summarize` / `explain` / `rewrite` / `send_to_claw` pipeline.
+## Things worth trying
 
-The project is:
+- Select text in an app that supports macOS Services and send it to Ask Claw.
+- Select files or folders in Finder and pass their context to the same action flow.
+- Capture a screenshot from the menu bar or hotkey flow.
+- Read a streamed answer in AskPanel; use the result popup for direct actions.
+- Try the optional Finder Sync integration for a Finder toolbar and context-menu entry.
 
-- local-first
-- macOS-native on the UI side
-- OpenClaw-first, but not OpenClaw-only
-- intentionally incremental rather than a big framework rewrite
+macOS Services are the most dependable way in. Selection behavior differs between Mac apps, and the Finder Sync integration is still a proof of concept.
 
-## What Works Today
+## Set it up locally
 
-Right now, RightOnClaw already has:
-
-- Finder file/folder entry through Automator Services
-- text-selection entry for apps that support macOS `NSServices`
-- screenshot capture flow
-- a single-window AskPanel for `ask_claw`
-- backend discovery and selection via the local bridge
-- fallback support for an API-key backend when OpenClaw is unavailable
-- a Finder Sync enhancement-layer PoC for a more product-like Finder entry
-
-In practice, the main flow is:
-
-```text
-Select or capture something
-  -> Ask Claw
-  -> native AskPanel
-  -> local bridge
-  -> runtime / executor
-  -> stream the answer back into the same window
-```
-
-## Repository Layout
-
-- `apps/macos-integration`
-  - macOS workflows, menu bar, hotkeys, AskPanel, popup UI, screenshot capture, Finder Sync PoC
-- `apps/bridge-server`
-  - local HTTP bridge under `/v1`
-- `packages/action-runtime`
-  - action definitions, routing, executor dispatch
-- `packages/core`
-  - config, errors, backend config/types, shared helpers
-- `packages/credential-layer`
-  - credential provider registry
-- `packages/openclaw-client`
-  - OpenClaw client contract and probe helpers
-
-If you want a current architecture walkthrough, start here:
-
-- [docs/PROJECT_CONTEXT.md](./docs/PROJECT_CONTEXT.md)
-- [docs/RIGHTONCLAW_ARCHITECTURE.md](./docs/RIGHTONCLAW_ARCHITECTURE.md)
-- [CONTRIBUTING.md](./CONTRIBUTING.md)
-- [docs/LOCAL_SETUP.md](./docs/LOCAL_SETUP.md)
-- [docs/MACOS_SETUP.md](./docs/MACOS_SETUP.md)
-- [docs/REPO_PUBLISHING.md](./docs/REPO_PUBLISHING.md)
-
-## Quick Start
-
-### 1. Install dependencies
+You need macOS, Node.js 20+, Corepack/pnpm, and Xcode Command Line Tools. OpenClaw is optional if you plan to configure an API-key backend.
 
 ```bash
 corepack pnpm install
-```
-
-If you want a starting point for local config, copy:
-
-```bash
 cp .env.example .env
-```
-
-### 2. Build the workspace
-
-```bash
 corepack pnpm build
-```
-
-### 3. Start the local bridge
-
-```bash
 corepack pnpm dev
 ```
 
-By default the bridge listens on:
-
-```text
-http://127.0.0.1:48765/v1
-```
-
-## macOS Integration
-
-### Install Services
-
-This is still the broad-coverage base layer for Finder and text selection.
+The local bridge listens on `http://127.0.0.1:48765/v1` by default. In another terminal, build and install the macOS Services:
 
 ```bash
 corepack pnpm --filter @rightonclaw/macos-integration build
 corepack pnpm --filter @rightonclaw/macos-integration install-workflows
 ```
 
-Current generated workflows:
-
-- `RightOnClaw Text.workflow`
-- `RightOnClaw Files.workflow`
-- `Ask Claw.workflow`
-
-### Launch the menu bar app
+You can also start the menu bar app with:
 
 ```bash
 node apps/macos-integration/dist/workflow-cli.js menu-bar
 ```
 
-That gives you:
+Then select some text and look for the RightOnClaw Service in the app's Services menu. On first use, configure a backend if the setup panel asks for one. [Local setup](docs/LOCAL_SETUP.md) covers dependencies and bridge configuration; [macOS setup](docs/MACOS_SETUP.md) covers Services, permissions, hotkeys, and the optional Finder Sync extension.
 
-- Ask Claw hotkey
-- screenshot hotkey
-- setup/settings entry
+## How it fits together
 
-### Install the Finder Sync enhancement PoC
-
-This is Finder-only. It does **not** replace the existing Services layer.
-
-```bash
-corepack pnpm --filter @rightonclaw/macos-integration build
-corepack pnpm --filter @rightonclaw/macos-integration build-finder-sync
-corepack pnpm --filter @rightonclaw/macos-integration install-finder-sync
+```text
+macOS selection or screenshot
+  → Service / menu bar entry
+  → local bridge
+  → OpenClaw or configured API backend
+  → native result window
 ```
 
-After install, enable the extension in macOS Finder Extensions settings if needed, then restart Finder.
+`apps/macos-integration/` owns capture and native UI. `apps/bridge-server/` exposes the local `/v1` API; `packages/action-runtime/` routes actions to the active backend. The bridge binds to `127.0.0.1` by default. Keep API keys and local tokens out of Git.
 
-## Backends
+For the full package map and current behavior, see the [project context](docs/PROJECT_CONTEXT.md) and [architecture notes](docs/RIGHTONCLAW_ARCHITECTURE.md). Contributions are welcome; start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
-RightOnClaw currently exposes two user-facing backends:
-
-- `openclaw`
-- `openai_compatible`
-
-The bridge decides which backend is active and exposes that state through:
-
-- `GET /v1/backends`
-- `POST /v1/backends/configure`
-- `GET /v1/capabilities`
-
-Important behavior:
-
-- if OpenClaw is installed and healthy, RightOnClaw prefers it
-- if OpenClaw is unavailable, an API-key backend can be configured as fallback
-- `send_to_claw` remains OpenClaw-only in the current MVP
-
-## Useful Commands
+## Development commands
 
 ```bash
-# build everything
 corepack pnpm build
-
-# run tests
-corepack pnpm test
-
-# typecheck
 corepack pnpm typecheck
-
-# start bridge only
-corepack pnpm dev
-
-# run OpenClaw smoke checks
-corepack pnpm smoke:openclaw
-
-# run experimental runtime smoke checks
-corepack pnpm smoke:experimental
+corepack pnpm test
 ```
 
-## Important Environment Variables
+The bridge also exposes `GET /v1/health`, `GET /v1/capabilities`, and `GET /v1/backends` for local inspection. Action and configuration endpoints are described in the architecture docs.
 
-You do not need every env var on day one. These are the main ones.
+## License
 
-### Bridge
-
-- `RIGHTONCLAW_HOST` default `127.0.0.1`
-- `RIGHTONCLAW_PORT` default `48765`
-- `RIGHTONCLAW_BODY_LIMIT_BYTES`
-- `RIGHTONCLAW_REQUEST_TIMEOUT_MS`
-- `RIGHTONCLAW_LOCAL_TOKEN`
-
-### OpenClaw
-
-- `RIGHTONCLAW_OPENCLAW_CLIENT_MODE`
-- `RIGHTONCLAW_OPENCLAW_BASE_URL`
-- `RIGHTONCLAW_OPENCLAW_GATEWAY_URL`
-- `RIGHTONCLAW_OPENCLAW_GATEWAY_TOKEN`
-- `RIGHTONCLAW_OPENCLAW_GATEWAY_PASSWORD`
-- `RIGHTONCLAW_OPENCLAW_AGENT_ID`
-- `RIGHTONCLAW_OPENCLAW_RESPONSES_PATH`
-- `RIGHTONCLAW_OPENCLAW_REQUEST_TIMEOUT_MS`
-
-### Fast path
-
-- `RIGHTONCLAW_SUMMARIZE_FAST_PATH`
-- `RIGHTONCLAW_EXPLAIN_FAST_PATH`
-- `RIGHTONCLAW_FAST_PATH_MAX_INPUT_LENGTH`
-
-### API-key backend / model path
-
-- `RIGHTONCLAW_MODEL_API_KEY`
-- `RIGHTONCLAW_MODEL_BASE_URL`
-- `RIGHTONCLAW_MODEL_NAME`
-
-## Endpoints
-
-Current public bridge endpoints:
-
-- `GET /v1/health`
-- `GET /v1/capabilities`
-- `GET /v1/backends`
-- `POST /v1/backends/configure`
-- `POST /v1/actions/ask-claw`
-- `POST /v1/actions/ask-claw/stream`
-- `POST /v1/actions/send-to-claw`
-- `POST /v1/actions/summarize`
-- `POST /v1/actions/summarize/stream`
-- `POST /v1/actions/explain`
-- `POST /v1/actions/explain/stream`
-- `POST /v1/actions/rewrite`
-
-
-
-RightOnClaw works best with **OpenClaw**, but it does not require it.
-
-If OpenClaw is installed, RightOnClaw connects automatically.If not, you can configure an **API key backend during the first‑run setup** and start using it immediately.
-
-This is the first public version and feedback is very welcome.
+[MIT](LICENSE).
